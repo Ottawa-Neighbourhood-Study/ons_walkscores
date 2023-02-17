@@ -116,6 +116,7 @@ list(
                      process_tranche_errorhandling(tranche = tranche7, ottawa_phhs = ottawa_phhs, num_to_score = 100, apikey = apikey )
  ),
 
+ # put it all together. last mutate is to fix region name error from old shapefile!
  targets::tar_target(walkscore_points,
                      dplyr::bind_rows(tranche1Walkscores,
                                       tranche2Walkscores,
@@ -124,7 +125,8 @@ list(
                                       tranche5Walkscores,
                                       tranche6Walkscores,
                                       tranche7Walkscores) %>%
-                       dplyr::filter(ONS_Region == "OTTAWA")
+                       dplyr::filter(ONS_Region == "OTTAWA") %>%
+                       dplyr::mutate(ONS_Name = dplyr::if_else(ONS_ID == 3074, "RICHMOND", ONS_Name))
                      ),
 
  targets::tar_target(walkscore_regions,
@@ -132,7 +134,7 @@ list(
                        sf::st_set_geometry(NULL) %>%
                        dplyr::group_by(ONS_ID, ONS_Name) %>%
                      dplyr::summarise(walkscore_mean = mean(as.numeric(walkscore))) %>%
-                       dplyr::left_join(ons_gen3, .) %>%
+                       dplyr::left_join(neighbourhoodstudy::ons_shp_gen3, .) %>%
                        dplyr::filter(ONS_Region == "OTTAWA")
                      ),
 
@@ -151,7 +153,7 @@ list(
 
  targets::tar_target(walkscore_regions_plot,
                      ggplot2::ggplot(walkscore_regions) +
-                       ggplot2::geom_sf(ggplot2::aes(fill = as.numeric(walkscore_mean)), colour = NULL) +
+                       ggplot2::geom_sf(ggplot2::aes(fill = as.numeric(walkscore_mean)), colour = NA) +
                        ggplot2::theme_void() +
                        ggplot2::theme(legend.position="none", plot.background = element_rect(fill="black")) +
                        ggplot2::scale_fill_viridis_c()
@@ -171,15 +173,13 @@ list(
                         sf::st_set_geometry(NULL) %>%
                         readr::write_csv(sprintf("outputs/walkscore-hoods-%s.csv", Sys.Date()))
 
-                      # readr::write_csv(sf::st_set_geometry(walkscore_points, NULL), sprintf("outputs/walkscore-points-%s.csv", Sys.Date))
-                      # readr::write_csv(sf::st_set_geometry(walkscore_regions, NULL), sprintf("outputs/walkscore-regions-%s.csv", Sys.Date))
-                      #
-                      # # save shapefiles
-                      # sf::write_sf(walkscore_points, sprintf("outputs/walkscore-points-%s.shp", Sys.Date))
-                      # sf::write_sf(walkscore_regions, sprintf("outputs/walkscore-regions-%s.s.shp", Sys.Date))
-
                     }
                     ),
+
+ targets::tar_target(save_results_ons,
+                     process_results(walkscore_points) %>%
+                       readr::write_csv(sprintf("outputs/ons_walkscores_%s.csv", Sys.Date()))
+                     ),
 
  NULL
 )
