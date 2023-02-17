@@ -1,0 +1,74 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+library(magrittr)
+```
+
+# Ottawa Neighbourhood Study: Walkscores Analysis
+
+To better understand walkability in Ottawa, Ontario, this analysis computed walkscores for 10,992 points across 116 neighbourhoods and tabulated neighbourhood-level statistics.
+
+## Methodology
+
+In each neighbourhood, approximately 100 points on road networks were randomly selected for analysis. Origin points were taken from the [Pseudo-Household Demographic Distribution (PHH) data file](https://open.canada.ca/data/en/dataset/b3a1d603-19ca-466c-ae95-b5185e56addf) produced by the Government of Canada's Department of Innovation, Science and Economic Development. PHHs were filtered to point types 3 and 4 (points on non-highway roads). Then, for each neighbourhood, either 100 PHHs or the maximum number available within their boundaries were selected. These points were then scored using the Walkscore API in several batches between February 9 and February 16, 2023. Means and standard deviations were calculated for each neighbourhood.
+
+Population-weighted means and standard deviations were also calculated for each neighbourhood. Each PHH in the PHH dataset comes assigned a population based on its Statistics Canada dissemination block (DB). We multiplied each PHH's walkscore by its population, then calculated neighbourhood-level values as, for each PHH i, sum(PHH_walkscore * PHH_population) / sum(PHH_population)."
+
+## Results
+
+### Plots
+
+Results for each of the 10,992 points are visualized below:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+targets::tar_load(walkscore_points_plot)
+walkscore_points_plot
+```
+
+And neighbourhood-level mean walkscores are presented below:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+targets::tar_load(walkscore_regions_plot)
+walkscore_regions_plot
+```
+
+
+### Data Tables
+
+
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+
+targets::tar_load(save_results_ons)
+
+save_results_ons %>% 
+  dplyr::select(-method, -date_updated) %>%
+    tidyr::pivot_longer(cols = -name, values_to = "value", names_to = "ONS_ID") %>% 
+  tidyr::pivot_wider(names_from = "name", values_from="value") %>%
+  gt::gt() %>%
+  gt::cols_label(
+    "walkscore_mean" = "Mean",
+    "walkscore_sd" = "St. Dev.",
+    walkscore_popweighted_mean = "Pop. Wt. Mean"
+  ) %>% #%>%  gt::tab_spanner(columns = 2:3, label = "Walkscore")
+  gt::tab_style(
+    style = gt::cell_borders(side="right", style="dashed"),
+    locations=list(gt::cells_body(columns="walkscore_sd"),
+                   gt::cells_column_labels(columns="walkscore_sd"))
+  ) %>%
+  gt::fmt_number(columns=-ONS_ID) %>%
+  gt::tab_header(
+    title = 'Ottawa Neighbourhood-Level Walk Scores',
+    subtitle = 'Population-weighted means based on 2016 census data'
+  ) 
+```
+
+
