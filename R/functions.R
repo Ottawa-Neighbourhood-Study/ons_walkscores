@@ -143,7 +143,7 @@ process_results <- function(walkscore_points){
 
   df <- sf::st_set_geometry(walkscore_points, NULL)
 
-  walkscores_method <- "Neighbourhood-level means for walkscores for approximately 100 randomly selected points on roads in each neighbourhood. Origin points were taken from the Pseudo-Household Demographic Distribution (PHH) data file produced by the Government of Canada, filtered to point types 3 and 4 (points on non-highway roads). Then, for each neighbourhood, either 100 PHHs or the maximum number available within their boundaries were selected. These points were then scored using the Walkscore API in several batches between February 9 and February 16, 2023. Means and standard deviations were calculated for each neighbourhood."
+  walkscores_method <- "Neighbourhood-level means for walkscores for approximately 100 randomly selected points on roads in each neighbourhood. Origin points were taken from the Pseudo-Household Demographic Distribution (PHH) data file produced by the Government of Canada, filtered to point types 3 and 4 (points on non-highway roads). Then, for each neighbourhood, either 100 PHHs or the maximum number available within their boundaries were selected. These points were then scored for walk scores and bike scores using the Walkscore API in several batches between February 9 and February 16, 2023. Means and standard deviations were calculated for each neighbourhood."
   walkscores_popmean_method <- "Neighbourhood-level means for walkscores for approximately 100 randomly selected points on roads in each neighbourhood. Origin points were taken from the Pseudo-Household Demographic Distribution (PHH) data file produced by the Government of Canada, filtered to point types 3 and 4 (points on non-highway roads). Then, for each neighbourhood, either 100 PHHs or the maximum number available within their boundaries were selected. These points were then scored using the Walkscore API in several batches between February 9 and February 16, 2023. Population-weighted means and standard deviations were then calculated for each neighbourhood. Each PHH in the PHH dataset comes assigned a population based on its Statistics Canada dissemination block (DB). We multiplied each PHH's walkscore by its population, then calculated neighbourhood-level values as, for each PHH i, sum(PHH_walkscore * PHH_population) / sum(PHH_population)."
 
   walkscores <- df %>%
@@ -165,7 +165,18 @@ process_results <- function(walkscore_points){
     dplyr::mutate(method = walkscores_popmean_method)
 
 
-  dplyr::bind_rows(walkscores, walkscores_popweighted) %>%
+  bikescores <- df %>%
+    dplyr::mutate(bike.score = as.numeric(bike.score)) %>%
+    dplyr::group_by(ONS_ID) %>%
+    dplyr::summarise(bikescore_mean = mean(bike.score),
+                     bikescore_sd = sd(bike.score)
+                     ) %>%
+    tidyr::pivot_longer(cols = -ONS_ID) %>%
+    tidyr::pivot_wider(names_from = "ONS_ID", values_from = "value") %>%
+    dplyr::mutate(method = walkscores_method)
+
+
+  dplyr::bind_rows(walkscores, walkscores_popweighted, bikescores) %>%
     dplyr::mutate(date_updated = Sys.Date())
 
 }
